@@ -13,6 +13,17 @@ pca = joblib.load('pca_model.pkl')  # Model PCA
 original_data = pd.read_csv('obesity_data.csv')
 original_data['Cluster'] = model.labels_
 
+cluster_stats = original_data.groupby('Cluster').agg({
+    'Age': 'mean',
+    'Height': 'mean',
+    'Weight': 'mean',
+    'FCVC': 'mean',
+    'NCP': 'mean',
+    'CH2O': 'mean',
+    'FAF': 'mean',
+    'TUE': 'mean',
+})
+
 #Input Data
 st.sidebar.header("Input Data:")
 age = st.sidebar.slider("Age", min_value=5, max_value=100, step=1, value=25)
@@ -157,7 +168,10 @@ if st.button("Prediksi"):
     plt.legend(fontsize=10)
     st.pyplot(plt)
 
-    st.subheader("Visualisasi Clustering Keseluruhan")
+    st.subheader("Rata-Rata Per Cluster")
+    st.write(cluster_stats)
+
+    st.subheader("Visualisasi Clustering Berdasarkan Tinggi dan Berat Badan")
     plt.figure(figsize=(12, 8))
 
     for cluster in range(model.n_clusters):
