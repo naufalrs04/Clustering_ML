@@ -4,86 +4,186 @@ import joblib
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pickle
+from sklearn.decomposition import PCA
 
-st.title("Prediksi Cluster Obesitas dengan K-Means")
-st.write("Masukkan data pada fitur di bawah ini untuk memprediksi cluster obesitas.")
+st.title("Clustering Obesitas")
 
-model = joblib.load('kmeans_model.pkl')
+model = joblib.load('kmeans_model.pkl')  # Model KMeans
+pca = joblib.load('pca_model.pkl')  # Model PCA
+original_data = pd.read_csv('obesity_data.csv')
+original_data['Cluster'] = model.labels_
 
-# Sidebar
-st.sidebar.header("Input Data :")
+#Input Data
+st.sidebar.header("Input Data:")
 age = st.sidebar.slider("Age", min_value=5, max_value=100, step=1, value=25)
 gender = st.sidebar.selectbox(
     "Gender",
-    options=[0, 1],
-    index=0,
-    format_func=lambda x: "Female" if x == 0 else "Male" 
+    options=['Female', 'Male'],
+    index=0
 )
-height = st.sidebar.slider("Height (cm)", min_value=50.0, max_value=250.0, step=0.1, value=170.0)
+height = st.sidebar.slider("Height (m)", min_value=1.0, max_value=2.0, step=0.01, value=1.65)
 weight = st.sidebar.slider("Weight (kg)", min_value=10.0, max_value=200.0, step=0.1, value=70.0)
+fcvc = st.sidebar.slider("FCVC (Frequency of Consumption of Vegetables)", min_value=0.0, max_value=10.0, step=0.1, value=4.0)
+ncp = st.sidebar.slider("NCP (Number of Main Meals)", min_value=0.0, max_value=10.0, step=0.1, value=2.0)
+ch2o = st.sidebar.slider("Daily Water Intake (liters)", min_value=0.1, max_value=10.0, step=0.1, value=2.0)
+faf = st.sidebar.slider("FAF (Frequency of Physical Activity)", min_value=0.0, max_value=10.0, step=0.1, value=3.0)
+tue = st.sidebar.slider("TUE (Time Using Technology Devices)", min_value=0.0, max_value=10.0, step=0.1, value=6.0)
+cal = st.sidebar.selectbox(
+    "Consumption of Alcohol (CALC)",
+    options=['Always', 'Frequently', 'Sometimes', 'no'],
+    index=3
+)
 favc = st.sidebar.selectbox(
     "Frequent Consumption of High Calorie Food (FAVC)",
-    options=[0, 1],
-    index=0,
-    format_func=lambda x: "No" if x == 0 else "Yes"
+    options=['no', 'yes'],
+    index=0
 )
-ch2o = st.sidebar.slider("Daily Water Intake (liters)", min_value=0.1, max_value=10.0, step=0.1, value=2.0)
+scc = st.sidebar.selectbox(
+    "Do you suffer from Stress (SCC)?",
+    options=['no', 'yes'],
+    index=0
+)
+smoke = st.sidebar.selectbox(
+    "Do you Smoke (SMOKE)?",
+    options=['no', 'yes'],
+    index=0
+)
 family_history = st.sidebar.selectbox(
     "Family History with Overweight",
-    options=[0, 1],
-    index=0,
-    format_func=lambda x: "No" if x == 0 else "Yes"
+    options=['no', 'yes'],
+    index=0
+)
+caec = st.sidebar.selectbox(
+    "Consumption of Carbohydrates (CAEC)",
+    options=['Always', 'Frequently', 'Sometimes', 'no'],
+    index=3
+)
+mtrans = st.sidebar.selectbox(
+    "Mode of Transportation (MTRANS)",
+    options=['Automobile', 'Bike', 'Motorbike', 'Public_Transportation', 'Walking'],
+    index=0
 )
 
-# Menambahkan penjelasan di area utama
+# Mapping categorical data to numerical values
+gender_mapping = {'Female': 0, 'Male': 1}
+cal_mapping = {'Always': 0, 'Frequently': 1, 'Sometimes': 2, 'no': 3}
+favc_mapping = {'no': 0, 'yes': 1}
+scc_mapping = {'no': 0, 'yes': 1}
+smoke_mapping = {'no': 0, 'yes': 1}
+family_history_mapping = {'no': 0, 'yes': 1}
+caec_mapping = {'Always': 0, 'Frequently': 1, 'Sometimes': 2, 'no': 3}
+mtrans_mapping = {'Automobile': 0, 'Bike': 1, 'Motorbike': 2, 'Public_Transportation': 3, 'Walking': 4}
+
+# Convert input data using mappings
+gender = gender_mapping[gender]
+cal = cal_mapping[cal]
+favc = favc_mapping[favc]
+scc = scc_mapping[scc]
+smoke = smoke_mapping[smoke]
+family_history = family_history_mapping[family_history]
+caec = caec_mapping[caec]
+mtrans = mtrans_mapping[mtrans]
+
+# Prepare the input data as a DataFrame
+input_data = pd.DataFrame({
+    'Age': [age],
+    'Height': [height],
+    'Weight': [weight],
+    'FCVC': [fcvc],
+    'NCP': [ncp],
+    'CH2O': [ch2o],
+    'FAF': [faf],
+    'TUE': [tue],
+    'Gender': [gender],
+    'CALC': [cal],
+    'FAVC': [favc],
+    'SCC': [scc],
+    'SMOKE': [smoke],
+    'family_history_with_overweight': [family_history],
+    'CAEC': [caec],
+    'MTRANS': [mtrans]
+})
+
+# Penjelasan aplikasi
 st.write("""
     Aplikasi ini memprediksi cluster obesitas berdasarkan data yang dimasukkan.
     Silakan pilih nilai untuk setiap fitur di sidebar untuk melihat hasil prediksi.
 """)
 
-# Ketika tombol prediksi ditekan
 if st.button("Prediksi"):
-    # Format input untuk model
-    new_data = np.array([[age, gender, height, weight, favc, ch2o, family_history]])
+    pca_data = pca.transform(input_data)
 
-    # Prediksi cluster
-    predicted_cluster = model.predict(new_data)
+    predicted_cluster = model.predict(pca_data)
 
-    # Menampilkan hasil prediksi
     st.subheader("Hasil Prediksi:")
     st.write(f"Data baru masuk ke cluster : {predicted_cluster[0]}")
-    st.subheader("Visualisasi Data")
-    
-    # Membuat DataFrame dengan data input baru
+
     input_df = pd.DataFrame({
         'Age': [age],
         'Weight': [weight],
         'Predicted Cluster': predicted_cluster
     })
 
-    # Scatter plot untuk menampilkan distribusi cluster berdasarkan Age dan Weight
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.scatterplot(x='Age', y='Weight', hue='Predicted Cluster', palette='viridis', data=input_df, s=100, ax=ax)
-    ax.set_title('Distribusi Cluster Obesitas Berdasarkan Usia dan Berat Badan')
-    ax.set_xlabel('Usia (Tahun)')
-    ax.set_ylabel('Berat Badan (kg)')
-    st.pyplot(fig)
+    st.subheader("Visualisasi Clustering setelah PCA")
+    pca_transformed = pca.transform(original_data.drop(columns=['Cluster']))
 
-    # Menampilkan histogram distribusi cluster berdasarkan umur
-    st.subheader("Distribusi Cluster Berdasarkan Umur")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.histplot(input_df['Age'], bins=10, kde=True, color='blue', ax=ax)
-    ax.set_title('Distribusi Umur pada Data Prediksi')
-    ax.set_xlabel('Umur')
-    ax.set_ylabel('Frekuensi')
-    st.pyplot(fig)
+    plt.figure(figsize=(12, 8))
+    plt.scatter(
+        pca_transformed[:, 0], 
+        pca_transformed[:, 1], 
+        c=original_data['Cluster'], 
+        cmap='viridis', 
+        s=50, 
+        alpha=0.7, 
+        edgecolor='k'
+    )
+    plt.title("Clustering dengan KMeans setelah PCA", fontsize=16)
+    plt.xlabel("Fitur 1 (PCA)", fontsize=12)
+    plt.ylabel("Fitur 2 (PCA)", fontsize=12)
+    plt.colorbar(label='Cluster')
+    plt.grid(alpha=0.3)
 
-    # Menampilkan histogram distribusi cluster berdasarkan berat badan
-    st.subheader("Distribusi Cluster Berdasarkan Berat Badan")
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.histplot(input_df['Weight'], bins=10, kde=True, color='green', ax=ax)
-    ax.set_title('Distribusi Berat Badan pada Data Prediksi')
-    ax.set_xlabel('Berat Badan (kg)')
-    ax.set_ylabel('Frekuensi')
-    st.pyplot(fig)
+    new_pca_point = pca.transform(input_data)
+    plt.scatter(
+        new_pca_point[0, 0], 
+        new_pca_point[0, 1], 
+        color='red', 
+        marker='X', 
+        s=200, 
+        label='Data Baru', 
+        edgecolor='k'
+    )
+
+    plt.legend(fontsize=10)
+    st.pyplot(plt)
+
+    st.subheader("Visualisasi Clustering Keseluruhan")
+    plt.figure(figsize=(12, 8))
+
+    for cluster in range(model.n_clusters):
+        cluster_data = original_data[original_data['Cluster'] == cluster]
+        plt.scatter(
+            cluster_data['Height'], 
+            cluster_data['Weight'], 
+            label=f'Cluster {cluster}', 
+            alpha=0.7, 
+            edgecolor='k'
+        )
+
+    plt.scatter(
+        height, 
+        weight, 
+        color='red', 
+        marker='X', 
+        s=200, 
+        label='Data Baru', 
+        alpha=1, 
+        edgecolor='k'
+    )
+
+    plt.title('Distribusi Cluster Berdasarkan Usia dan Berat Badan', fontsize=16)
+    plt.xlabel('Tinggi Badan (m)', fontsize=12)
+    plt.ylabel('Berat Badan (kg)', fontsize=12)
+    plt.grid(alpha=0.3)
+    plt.legend(fontsize=10)
+    st.pyplot(plt)
