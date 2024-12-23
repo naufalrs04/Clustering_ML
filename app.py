@@ -1,3 +1,4 @@
+from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
 import numpy as np
 import joblib
@@ -8,8 +9,8 @@ from sklearn.decomposition import PCA
 
 st.title("Clustering Obesitas")
 
-model = joblib.load('kmeans_model.pkl')  # Model KMeans
-pca = joblib.load('pca_model.pkl')  # Model PCA
+model = joblib.load('kmeans_model.pkl') 
+pca = joblib.load('pca_model.pkl')
 original_data = pd.read_csv('obesity_data.csv')
 original_data['Cluster'] = model.labels_
 
@@ -36,7 +37,7 @@ height = st.sidebar.slider("Height (m)", min_value=1.0, max_value=2.0, step=0.01
 weight = st.sidebar.slider("Weight (kg)", min_value=10.0, max_value=200.0, step=0.1, value=70.0)
 fcvc = st.sidebar.slider("FCVC (Frequency of Consumption of Vegetables)", min_value=0.0, max_value=10.0, step=0.1, value=4.0)
 ncp = st.sidebar.slider("NCP (Number of Main Meals)", min_value=0.0, max_value=10.0, step=0.1, value=2.0)
-ch2o = st.sidebar.slider("Daily Water Intake (liters)", min_value=0.1, max_value=10.0, step=0.1, value=2.0)
+ch2o = st.sidebar.slider("Daily Water Intake (CH2O)", min_value=0.1, max_value=10.0, step=0.1, value=2.0)
 faf = st.sidebar.slider("FAF (Frequency of Physical Activity)", min_value=0.0, max_value=10.0, step=0.1, value=3.0)
 tue = st.sidebar.slider("TUE (Time Using Technology Devices)", min_value=0.0, max_value=10.0, step=0.1, value=6.0)
 cal = st.sidebar.selectbox(
@@ -75,7 +76,6 @@ mtrans = st.sidebar.selectbox(
     index=0
 )
 
-# Mapping categorical data to numerical values
 gender_mapping = {'Female': 0, 'Male': 1}
 cal_mapping = {'Always': 0, 'Frequently': 1, 'Sometimes': 2, 'no': 3}
 favc_mapping = {'no': 0, 'yes': 1}
@@ -85,7 +85,6 @@ family_history_mapping = {'no': 0, 'yes': 1}
 caec_mapping = {'Always': 0, 'Frequently': 1, 'Sometimes': 2, 'no': 3}
 mtrans_mapping = {'Automobile': 0, 'Bike': 1, 'Motorbike': 2, 'Public_Transportation': 3, 'Walking': 4}
 
-# Convert input data using mappings
 gender = gender_mapping[gender]
 cal = cal_mapping[cal]
 favc = favc_mapping[favc]
@@ -95,7 +94,6 @@ family_history = family_history_mapping[family_history]
 caec = caec_mapping[caec]
 mtrans = mtrans_mapping[mtrans]
 
-# Prepare the input data as a DataFrame
 input_data = pd.DataFrame({
     'Age': [age],
     'Height': [height],
@@ -115,7 +113,6 @@ input_data = pd.DataFrame({
     'MTRANS': [mtrans]
 })
 
-# Penjelasan aplikasi
 st.write("""
     Aplikasi ini memprediksi cluster obesitas berdasarkan data yang dimasukkan.
     Silakan pilih nilai untuk setiap fitur di sidebar untuk melihat hasil prediksi.
@@ -200,4 +197,72 @@ if st.button("Prediksi"):
     plt.ylabel('Berat Badan (kg)', fontsize=12)
     plt.grid(alpha=0.3)
     plt.legend(fontsize=10)
+    st.pyplot(plt)
+
+    st.subheader("Boxplot Fitur Numerikal Berdasarkan Cluster")
+    scaler = MinMaxScaler()
+    numerical_features = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
+    numerical_data = original_data[numerical_features]
+    numerical_scaled = pd.DataFrame(scaler.fit_transform(numerical_data), columns=numerical_features)
+
+    input_data_scaled = scaler.transform(input_data[numerical_features])
+    input_data_scaled = pd.DataFrame(input_data_scaled, columns=numerical_features)
+    input_data_scaled['Type'] = 'Data Baru'
+    numerical_scaled['Type'] = 'Data Asli' 
+
+    combined_data = pd.concat([numerical_scaled, input_data_scaled])
+
+    long_data = pd.melt(
+        combined_data,
+        id_vars=['Type'], 
+        var_name='Feature',
+        value_name='Value'
+    )
+
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(data=long_data, x='Feature', y='Value', hue='Type', palette={'Data Asli': 'blue', 'Data Baru': 'red'})
+    plt.title('Distribusi Gabungan Fitur dengan Data Baru', fontsize=16)
+    plt.xlabel('Fitur', fontsize=12)
+    plt.ylabel('Nilai (Ternormalisasi)', fontsize=12)
+    plt.xticks(rotation=45, fontsize=10)
+    plt.grid(alpha=0.3)
+    st.pyplot(plt)
+
+    st.subheader("Boxplot Fitur Kategorikal Berdasarkan Cluster")
+
+    categorical_features = ['Gender','CALC', 'FAVC', 'SCC', 'SMOKE', 'family_history_with_overweight','CAEC','MTRANS']
+    scaler = MinMaxScaler()
+    categorical_data = original_data[categorical_features]
+    categorical_scaled = pd.DataFrame(scaler.fit_transform(categorical_data), columns=categorical_features)
+    
+    input_categorical_scaled = pd.DataFrame([{
+        'Gender': gender, 
+        'CALC': cal, 
+        'FAVC': favc, 
+        'SCC': scc, 
+        'SMOKE': smoke, 
+        'family_history_with_overweight': family_history,
+        'CAEC': caec,
+        'MTRANS': mtrans,
+    }], columns=categorical_features)
+
+    categorical_scaled['Type'] = 'Data Asli'
+    input_categorical_scaled['Type'] = 'Data Baru'
+
+    combined_categorical = pd.concat([categorical_scaled, input_categorical_scaled])
+
+    long_categorical_data = pd.melt(
+        combined_categorical,
+        id_vars=['Type'],
+        var_name='Feature',
+        value_name='Value'
+    )
+
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(data=long_categorical_data, x='Feature', y='Value', hue='Type', palette={'Data Asli': 'blue', 'Data Baru': 'red'})
+    plt.title('Distribusi Gabungan Fitur Kategorikal dengan Data Baru', fontsize=16)
+    plt.xlabel('Fitur', fontsize=12)
+    plt.ylabel('Nilai (Ternormalisasi)', fontsize=12)
+    plt.xticks(rotation=45, fontsize=10)
+    plt.grid(alpha=0.3)
     st.pyplot(plt)
